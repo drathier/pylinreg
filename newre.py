@@ -59,7 +59,6 @@ def parse_charset(expr):
     ret = []
     print "parse_charset", "expr", expr
     # todo: implement [^whatever]
-    this = ""
     pos = -1
     neg = False
 
@@ -71,7 +70,7 @@ def parse_charset(expr):
         pos += 1
         c = expr[pos]
         print expr, "; ", pos, "; ", c
-        if pos + 2 < len(expr) and expr[pos + 1] == "-":
+        if pos + 2 < len(expr) and expr[pos + 1] == "-" and c != "\\":
             ret += [('range', expr[pos], expr[pos + 2])]
             pos += 2
         else:
@@ -92,7 +91,6 @@ def parse_expr(expr):
     this = ""
     depth = 0
     pos = -1
-    neg = False
 
     while pos + 1 < len(expr):
         pos += 1
@@ -148,7 +146,39 @@ def parse_expr(expr):
 
         elif c == "\\":
             pos += 1
-            this += expr[pos]
+            d = expr[pos]
+            if d == "d":
+                if this != "":
+                    ret += [this]
+                    this = ""
+                ret += ('union', ['0', '9'])
+            elif d == "D":
+                if this != "":
+                    ret += [this]
+                    this = ""
+                ret += ('neg-union', ['0', '9'])
+            elif d == "s":
+                if this != "":
+                    ret += [this]
+                    this = ""
+                ret += ('union', ['\t', '\n', '\r', '\f', '\v'])
+            elif d == "S":
+                if this != "":
+                    ret += [this]
+                    this = ""
+                ret += ('neg-union', ['\t', '\n', '\r', '\f', '\v'])
+            elif d == "w":
+                if this != "":
+                    ret += [this]
+                    this = ""
+                ret += ('union', [('range', ['a', 'z']), ('range', ['A', 'Z']), ('range', ['0', '9']), '_'])
+            elif d == "W":
+                if this != "":
+                    ret += [this]
+                    this = ""
+                ret += ('neg-union', [('range', ['a', 'z']), ('range', ['A', 'Z']), ('range', ['0', '9']), '_'])
+            else:
+                this += d
 
         elif c == "{":
             if this != "":
@@ -158,7 +188,11 @@ def parse_expr(expr):
             a = expr[pos + 1:endpos]
             pos = endpos
             print "a:", a
-            fr, to = a.split(",")
+
+            if ',' in a:
+                fr, to = a.split(",")
+            else:
+                fr = to = a
             to = int(to)
             fr = int(fr)
             ret, pop = ret[:-1], ret[-1]
@@ -188,7 +222,8 @@ def parse_expr(expr):
     if len(ret) == 1:
         ret = ret[0]
 
-    """if type(ret) is list and all([type(x) in (list, str) for x in ret]):
+    """
+    if type(ret) is list and all([type(x) in (list, str) for x in ret]):
         print "flattening ret", ret
         flat = []
         for inner_list in ret:
@@ -232,12 +267,16 @@ if __name__ == "__main__":
     test("aa(ab)*cc", ['aa', ('star', ['ab']), 'cc'])
     test("(aaa(bc)c)", ['aaa', 'bc', 'c'])
     test(r"(aa.a(bc)*\)c)", ['aa', ('dot',), 'a', ('star', ['bc']), ')c'])
+    test("(aaa(bc){2}c)", ['aaa', 'bc', 'bc', 'c'])
     test("(aaa(bc){3,3}c)", ['aaa', 'bc', 'bc', 'bc', 'c'])
     test("(aaa(bc){1,3}c)", ['aaa', 'bc', ('union', ['', 'bc']), ('union', ['', 'bc']), 'c'])
     test("[abc]*", ('star', [('union', ['a', 'b', 'c'])]))
     test("[a-c]", ('union', [('range', 'a', 'c')]))
     test("[xa-fA-Fy]", ('union', ['x', ('range', 'a', 'f'), ('range', 'A', 'F'), 'y']))
     test("[^a-c]", ('neg-union', [('range', 'a', 'c')]))
+    test("[-a-c]", ('union', ['-', ('range', 'a', 'c')]))
+    test("[a-c-]", ('union', [('range', 'a', 'c'), '-']))
+    test("[^^]", ('neg-union', ['^']))
 
     print "-" * 50
     print "all tests ok"
