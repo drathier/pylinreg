@@ -55,6 +55,36 @@ lists are used to build tree structures
 """
 
 
+def parse_charset(expr):
+    ret = []
+    print "parse_charset", "expr", expr
+    # todo: implement [^whatever]
+    this = ""
+    pos = -1
+    neg = False
+
+    if expr[0] == "^":
+        neg = True
+        pos += 1
+
+    while pos + 1 < len(expr):
+        pos += 1
+        c = expr[pos]
+        print expr, "; ", pos, "; ", c
+        if pos + 2 < len(expr) and expr[pos + 1] == "-":
+            ret += [('range', expr[pos], expr[pos + 2])]
+            pos += 2
+        else:
+            ret += [c]
+
+    union = [('union', ret)]
+    if neg:
+        union = [('neg-union', ret)]
+
+    print "parse_charset", union
+    return union
+
+
 def parse_expr(expr):
     print "parse_expr(", expr, ")"
     ret = []
@@ -62,6 +92,7 @@ def parse_expr(expr):
     this = ""
     depth = 0
     pos = -1
+    neg = False
 
     while pos + 1 < len(expr):
         pos += 1
@@ -133,6 +164,15 @@ def parse_expr(expr):
             ret, pop = ret[:-1], ret[-1]
             ret += [pop] * fr + [('union', ['', pop])] * (to - fr)
 
+        elif c == "[":
+            if this != "":
+                ret += [this]
+                this = ""
+            endpos = expr.find("]", pos)
+            a = expr[pos + 1:endpos]
+            pos = endpos
+            ret += parse_charset(a)
+
         else:
             this += c
 
@@ -141,6 +181,9 @@ def parse_expr(expr):
         ret += [("union", list(union))]
     elif this != "":
         ret += [this]
+
+    if type(ret) == list:
+        ret = filter(None, ret)
 
     if len(ret) == 1:
         ret = ret[0]
@@ -182,6 +225,7 @@ if __name__ == "__main__":
     test("(aaabcc)", 'aaabcc')
     test("(aaabcc)*", ('star', ['aaabcc']))
     test("aaabcc*", ['aaabc', ('star', ['c'])])
+    test("a*", ('star', ['a']))
     test("(abc)+", ['abc', ('star', ['abc'])])
     test("(abc)?", ('union', ['', 'abc']))
     test("abc?", ['ab', ('union', ['', 'c'])])
@@ -190,6 +234,10 @@ if __name__ == "__main__":
     test(r"(aa.a(bc)*\)c)", ['aa', ('dot',), 'a', ('star', ['bc']), ')c'])
     test("(aaa(bc){3,3}c)", ['aaa', 'bc', 'bc', 'bc', 'c'])
     test("(aaa(bc){1,3}c)", ['aaa', 'bc', ('union', ['', 'bc']), ('union', ['', 'bc']), 'c'])
+    test("[abc]*", ('star', [('union', ['a', 'b', 'c'])]))
+    test("[a-c]", ('union', [('range', 'a', 'c')]))
+    test("[xa-fA-Fy]", ('union', ['x', ('range', 'a', 'f'), ('range', 'A', 'F'), 'y']))
+    test("[^a-c]", ('neg-union', [('range', 'a', 'c')]))
 
     print "-" * 50
     print "all tests ok"
