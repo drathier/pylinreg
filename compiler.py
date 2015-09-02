@@ -71,7 +71,7 @@ def parse_charset(expr):
         c = expr[pos]
         print expr, "; ", pos, "; ", c
         if pos + 2 < len(expr) and expr[pos + 1] == "-" and c != "\\":
-            ret += [('range', expr[pos], expr[pos + 2])]
+            ret += [('union', [chr(x) for x in range(ord(expr[pos]), ord(expr[pos + 2]))])]
             pos += 2
         else:
             ret += [c]
