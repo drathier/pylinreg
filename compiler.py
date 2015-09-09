@@ -4,7 +4,7 @@ __author__ = 'drathier'
 
 
 def old_parse_expr(expr):
-    print "parse_expr(", expr, ")"
+    #print "parse_expr(", expr, ")"
 
     kind = None
     ret = []
@@ -57,7 +57,7 @@ lists are used to build tree structures
 
 def parse_charset(expr):
     ret = []
-    print "parse_charset", "expr", expr
+    #print "parse_charset", "expr", expr
     # todo: implement [^whatever]
     pos = -1
     neg = False
@@ -71,7 +71,7 @@ def parse_charset(expr):
         c = expr[pos]
         print expr, "; ", pos, "; ", c
         if pos + 2 < len(expr) and expr[pos + 1] == "-" and c != "\\":
-            ret += [('union', [chr(x) for x in range(ord(expr[pos]), ord(expr[pos + 2]))])]
+            ret += [chr(x) for x in range(ord(expr[pos]), ord(expr[pos + 2]) + 1)]
             pos += 2
         else:
             ret += [c]
@@ -80,12 +80,12 @@ def parse_charset(expr):
     if neg:
         union = [('neg-union', ret)]
 
-    print "parse_charset", union
+    #print "parse_charset", union
     return union
 
 
 def parse_expr(expr):
-    print "parse_expr(", expr, ")"
+    #print "parse_expr(", expr, ")"
     ret = []
     union = []
     this = ""
@@ -95,7 +95,7 @@ def parse_expr(expr):
     while pos + 1 < len(expr):
         pos += 1
         c = expr[pos]
-        print expr, "; ", pos, "; ", c
+        #print expr, "; ", pos, "; ", c
         if c == "(":
             depth += 1
             paren_start = pos
@@ -236,7 +236,7 @@ def parse_expr(expr):
         print ret, "-->", flat
     """
 
-    print "ret", ret
+    #print "ret", ret
     return ret
 
 
@@ -271,12 +271,18 @@ if __name__ == "__main__":
     test("(aaa(bc){3,3}c)", ['aaa', 'bc', 'bc', 'bc', 'c'])
     test("(aaa(bc){1,3}c)", ['aaa', 'bc', ('union', ['', 'bc']), ('union', ['', 'bc']), 'c'])
     test("[abc]*", ('star', [('union', ['a', 'b', 'c'])]))
-    test("[a-c]", ('union', [('range', 'a', 'c')]))
-    test("[xa-fA-Fy]", ('union', ['x', ('range', 'a', 'f'), ('range', 'A', 'F'), 'y']))
-    test("[^a-c]", ('neg-union', [('range', 'a', 'c')]))
-    test("[-a-c]", ('union', ['-', ('range', 'a', 'c')]))
-    test("[a-c-]", ('union', [('range', 'a', 'c'), '-']))
+    test("[a-c]", ('union', ['a', 'b', 'c']))
+    test("[xa-fA-Fy]", ('union', ['x', 'a', 'b', 'c', 'd', 'e', 'f', 'A', 'B', 'C', 'D', 'E', 'F', 'y']))
+    test("[^a-c]", ('neg-union', ['a', 'b', 'c']))
+    test("[-a-c]", ('union', ['-', 'a', 'b', 'c']))
+    test("[a-c-]", ('union', ['a', 'b', 'c', '-']))
     test("[^^]", ('neg-union', ['^']))
 
     print "-" * 50
     print "all tests ok"
+
+
+    # TODO: minimization algorithm adds nodes until graph is optimal, but keeps the old ones.
+    # TODO: there's always a non-empty edge to move along, but it's not minimal at all
+    # TODO: maybe it's good enough, if we just remove the empty edges?
+    # TODO: there are definitely nodes that are equal in the final graph,
